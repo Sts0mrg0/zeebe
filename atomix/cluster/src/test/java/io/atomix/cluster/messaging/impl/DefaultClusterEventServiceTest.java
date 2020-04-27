@@ -54,7 +54,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.junit.Test;
-import org.slf4j.LoggerFactory;
 
 /** Cluster event service test. */
 public class DefaultClusterEventServiceTest {
@@ -108,12 +107,7 @@ public class DefaultClusterEventServiceTest {
             bootstrapService1,
             new HeartbeatMembershipProtocol(new HeartbeatMembershipProtocolConfig()));
     managedMemberShipServices.put(memberId, managedClusterMembershipService);
-    managedClusterMembershipService.addListener(
-        event -> {
-          LoggerFactory.getLogger("FINDME")
-              .info(" {} : {}  {}", memberId, event.type(), event.subject());
-          membersDiscovered.countDown();
-        });
+    managedClusterMembershipService.addListener(event -> membersDiscovered.countDown());
     final ClusterMembershipService clusterMembershipService =
         managedClusterMembershipService.start().join();
     final ManagedClusterEventService clusterEventingService1 =
