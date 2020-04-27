@@ -10,6 +10,7 @@ package io.zeebe.broker.it.clustering;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.zeebe.broker.Broker;
+import io.zeebe.broker.clustering.atomix.storage.snapshot.DbSnapshotMetadata;
 import io.zeebe.broker.system.configuration.BrokerCfg;
 import io.zeebe.broker.system.configuration.DataCfg;
 import io.zeebe.broker.system.configuration.ExporterCfg;
@@ -55,36 +56,23 @@ public class SingleBrokerDataDeletionTest {
     // given
     final Broker broker = clusteringRule.getBroker(0);
 
-    int i = 0;
     while (getSegmentsCount(broker) <= 2) {
-      clusteringRule
-          .getClient()
-          .newPublishMessageCommand()
-          .messageName("msg")
-          .correlationKey("key")
-          .messageId("msg" + (++i))
-          .send()
-          .join();
+      writeToLog();
     }
 
     // when
     ControllableExporter.updatePosition(false);
 
     // write more events
-    while (getSegmentsCount(broker) <= 4) {
-      clusteringRule
-          .getClient()
-          .newPublishMessageCommand()
-          .messageName("msg")
-          .correlationKey("key")
-          .messageId("msg" + (++i))
-          .send()
-          .join();
+    while (getSegmentsCount(broker) <= 3) {
+      writeToLog();
     }
+    // write one more to make sure last processed position in segment 3
+    writeToLog();
 
     // increase snapshot interval and wait
     clusteringRule.getClock().addTime(SNAPSHOT_PERIOD);
-    clusteringRule.waitForSnapshotAtBroker(broker);
+    final DbSnapshotMetadata firstSnapshot = clusteringRule.waitForSnapshotAtBroker(broker);
 
     // then
     final var logstream = clusteringRule.getLogStream(1);
@@ -94,6 +82,28 @@ public class SingleBrokerDataDeletionTest {
     reader.seek(firstNonExportedPosition);
     assertThat(reader.hasNext()).isTrue();
     assertThat(reader.next().getPosition()).isEqualTo(firstNonExportedPosition);
+
+    // when
+    ControllableExporter.updatePosition(true);
+    writeToLog();
+    final var segmentsBeforeSnapshot = getSegmentsCount(broker);
+
+    // increase snapshot interval and wait
+    clusteringRule.getClock().addTime(SNAPSHOT_PERIOD);
+    clusteringRule.waitForNewSnapshotAtBroker(broker, firstSnapshot);
+
+    // then
+    assertThat(getSegmentsCount(broker)).isLessThan(segmentsBeforeSnapshot);
+  }
+
+  private void writeToLog() {
+    clusteringRule
+        .getClient()
+        .newPublishMessageCommand()
+        .messageName("msg")
+        .correlationKey("key")
+        .send()
+        .join();
   }
 
   private int getSegmentsCount(final Broker broker) {
