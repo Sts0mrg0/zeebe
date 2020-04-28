@@ -158,7 +158,7 @@ public class DefaultClusterEventService
    * @return the collection of subscribers for the given topic
    */
   private Stream<MemberId> getSubscriberNodes(final String topicName) {
-    return getSubscribers(topicName).stream().distinct();
+    return getSubscribers(topicName).stream();
   }
 
   /** Updates all active peers with a given subscription. */
@@ -390,7 +390,7 @@ public class DefaultClusterEventService
      *
      * @param subscription the subscription to register
      */
-    private synchronized CompletableFuture<Subscription> addLocalSubscription(
+    private CompletableFuture<Subscription> addLocalSubscription(
         final InternalSubscription subscription) {
       subscribers.add(subscription);
       subscriptions.add(localMemberId);
@@ -403,7 +403,7 @@ public class DefaultClusterEventService
      *
      * @param subscription the subscription to unregister
      */
-    private synchronized CompletableFuture<Void> removeLocalSubscription(
+    private CompletableFuture<Void> removeLocalSubscription(
         final InternalSubscription subscription) {
       subscribers.remove(subscription);
       subscriptions.remove(localMemberId);
@@ -418,7 +418,7 @@ public class DefaultClusterEventService
      *
      * @param subscription the subscription to add
      */
-    synchronized void addRemoteSubscription(final MemberId subscription) {
+    void addRemoteSubscription(final MemberId subscription) {
       subscriptions.add(subscription);
     }
 
@@ -427,7 +427,7 @@ public class DefaultClusterEventService
      *
      * @param subscription the subscription to update
      */
-    synchronized void removeRemoteSubscription(final MemberId subscription) {
+    void removeRemoteSubscription(final MemberId subscription) {
       subscriptions.remove(subscription);
     }
   }
